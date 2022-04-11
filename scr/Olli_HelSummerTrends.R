@@ -35,9 +35,9 @@ if(T){
   library(vegan)
   library(adespatial) # beta.div (Var(Y) based beta: var.div.comp - decomposition of beta)
   library(proxy) # for row.dist and col.dist to get row and column indexes of dist object
-  library(sp)
+  # library(sp)
   library(sf)
-  library(parallelDist)
+  #library(parallelDist)
   library(parallel)
   library(entropart) # entropart::Dqz
   library(lubridate) # lubridate::decimal_date
@@ -57,13 +57,13 @@ if(T){
 
 if(T){ # provides data tables dat, meta. bscl
   # load sample metadata
-  meta <- read.table('Olli_HelSummerTrends_meta.txt', header = TRUE, sep = '\t') # 4630 samples
+  meta <- read.table('./dat/Olli_HelSummerTrends_meta.txt', header = TRUE, sep = '\t') # 4630 samples
   
   # load long format species data
-  dat <- read.table('Olli_HelSummerTrends_species.txt', header = TRUE, sep = '\t') # 155301 × 4
+  dat <- read.table('./dat/Olli_HelSummerTrends_species.txt', header = TRUE, sep = '\t') # 155301 × 4
   
   # load worms classification table
-  bscl <- read.table('./Olli_HelSummerTrends_bscl.txt', header = TRUE, sep = '\t')
+  bscl <- read.table('./dat/Olli_HelSummerTrends_bscl.txt', header = TRUE, sep = '\t')
   
   # add taxon name to dat
   dat <- left_join(dat, select(bscl, id, valid_name), by = c('valid_AphiaID' = 'id'))
@@ -104,7 +104,7 @@ if(T){ #  provides datmds, stni, stno, updates meta with inner/outer split
     datmds <- metaMDS(datcm, k = 2) # may take some time, ca 30 min on my laptop
     save(datmds, file = 'Olli_HelSummerTrends_datmds.rda')
   } # NB! long calculation
-  load(file = 'Olli_HelSummerTrends_datmds.rda')
+  load(file = './bin/Olli_HelSummerTrends_datmds.rda')
   
   # the fist global nmds ordination axis correlates with time; the second axis correlates with the coastal-pelagic gradient. 
   # we rotate the ordination to make station depth (proxy of the coastal-pelagic gradient) parallel to the 1st ordination axis
@@ -151,8 +151,8 @@ if(T){ # saves file Olli_HelSummerTrends_Figure1S
     theme(legend.position = c(0.75, 0.85), legend.background = element_rect(fill = 0)) +
     theme(axis.title = element_text(size = 18), axis.text = element_text(size = 18),legend.text = element_text(size = 14), legend.title = element_text(size = 14)) 
   
-   ggsave2(Fig1S, file = './Olli_HelSummerTrends_FigureS1.pdf', width = 6, height = 6)
-   ggsave2(Fig1S, file = './Olli_HelSummerTrends_FigureS1.svg', width = 6, height = 6)
+   ggsave2(Fig1S, file = './fig/Olli_HelSummerTrends_FigureS1.pdf', width = 6, height = 6)
+   # ggsave2(Fig1S, file = './Olli_HelSummerTrends_FigureS1.svg', width = 6, height = 6)
 } # saves file Olli_HelSummerTrends_Figure1S
 
 # Fig 1 STATION MAP ####
@@ -193,8 +193,8 @@ if(T){ # saves file Olli_HelSummerTrends_Figure1.pdf
     draw_plot(ggm2) +
     draw_plot(ggm1, scale = 0.4, halign = 1.11, valign = 0.145)
   
-  ggsave2(Figure1, file = './Olli_HelSummerTrends_Figure1.pdf', width = 7.5, height = 6.5)
-  ggsave2(Figure1, file = './Olli_HelSummerTrends_Figure1.svg', width = 7.5, height = 6.5, device = 'svg')
+  ggsave2(Figure1, file = './fig/Olli_HelSummerTrends_Figure1.pdf', width = 7.5, height = 6.5)
+  # ggsave2(Figure1, file = './Olli_HelSummerTrends_Figure1.svg', width = 7.5, height = 6.5, device = 'svg')
   
 } # saves file Olli_HelSummerTrends_Figure1
 
