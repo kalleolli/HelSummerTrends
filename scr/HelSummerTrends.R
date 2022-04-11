@@ -1,31 +1,31 @@
 # Half-century trends in alpha and beta diversity of phytoplankton summer communities in the Helsinki Archipelago, the Baltic Sea
 # Kalle Olli, Emil Nyman, Timo Tamminen
 # 
-# Olli_HelSummerTrends.R
+# HelSummerTrends.R
 
 #  Script summary
 #  1. Load the main data files
 #  2. Split the sampling stations to inner and outer arhipleago based on NMDS ordination
-#  3. Map of the study area (Olli_HelSummerTrends_Figure1)
+#  3. Map of the study area (HelSummerTrends_Figure1)
 #  4. NMDS ordination of inner and outer archipelago, superimposed by envfit, kmeans clusters 
 #  5. Diveristy profiles of communities
 #  6. vegan::envfit profiles
-#  7.Save NMDS ordination with envfit vectors: save Olli_HelSummerTrends_Figure2
-#  8. NMDS1 and species richness trends, save Olli_HelSummerTrends_Figure3
-#  9. Community evenness trends, save Olli_HelSummerTrends_FigureS6
-# 10. Species cumulative likelihood of occurrence, saves file Olli_HelSummerTrends_Figure4
+#  7.Save NMDS ordination with envfit vectors: save HelSummerTrends_Figure2
+#  8. NMDS1 and species richness trends, save HelSummerTrends_Figure3
+#  9. Community evenness trends, save HelSummerTrends_FigureS6
+# 10. Species cumulative likelihood of occurrence, saves file HelSummerTrends_Figure4
 # 11. Most frequent species, Supplementary tables S2 and S3
 # 12. Beta diversity calculations
-# 13. Trends in temporal beta diversity; save Olli_HelSummerTrends_Figure5
-# 14. Trends in spatial beta diversity; save Olli_HelSummerTrends_Figure6
-# 15. Beta diverstity decomposition; save Olli_HelSummerTrends_Figure7
-# 16. Distance decay; save Olli_HelSummerTrends_Figure8
-# 17. GAM effect size, save Olli_HelSummerTrends_FigureS2.pdf
+# 13. Trends in temporal beta diversity; save HelSummerTrends_Figure5
+# 14. Trends in spatial beta diversity; save HelSummerTrends_Figure6
+# 15. Beta diverstity decomposition; save HelSummerTrends_Figure7
+# 16. Distance decay; save HelSummerTrends_Figure8
+# 17. GAM effect size, save HelSummerTrends_FigureS2.pdf
 # 18. The effect of microscopists
 # 19. Mantel and adonis block for Table 1 and Fig S3
 # 20. Table 1
 # 21. Hierarchical GAM, Figs S4, S5, Table S1
-# 22. Nutrient block, saves Olli_HelSummerTrends_FigureS7.pdf
+# 22. Nutrient block, saves HelSummerTrends_FigureS7.pdf
 
 # load libraries
 if(T){
@@ -35,9 +35,7 @@ if(T){
   library(vegan)
   library(adespatial) # beta.div (Var(Y) based beta: var.div.comp - decomposition of beta)
   library(proxy) # for row.dist and col.dist to get row and column indexes of dist object
-  # library(sp)
   library(sf)
-  #library(parallelDist)
   library(parallel)
   library(entropart) # entropart::Dqz
   library(lubridate) # lubridate::decimal_date
@@ -45,11 +43,11 @@ if(T){
   library(stargazer) # for visualizing tables in R
   
   # required external files:
-  # ./Olli_HelSummerTrends_meta.txt
-  # ./Olli_HelSummerTrends_species.txt'
-  # ./Olli_HelSummerTrends_renyi2_renyi2.R'  # modified vegan::renyi function to allow negative orders of diversity
-  # ./Olli_HelSummerTrends_bscl.txt # taxon classification according to WORMS
-  # ./Olli_HelSummerTrends_bstree.txt # crude phylogeny from WORMS classification
+  # ./dat/HelSummerTrends_meta.txt
+  # ./dat/HelSummerTrends_species.txt'
+  # ./dat/HelSummerTrends_renyi2_renyi2.R'  # modified vegan::renyi function to allow negative orders of diversity
+  # ./dat/HelSummerTrends_bscl.txt # taxon classification according to WORMS
+  # ./dat/HelSummerTrends_bstree.txt # crude phylogeny from WORMS classification
   
 }
 
@@ -57,13 +55,13 @@ if(T){
 
 if(T){ # provides data tables dat, meta. bscl
   # load sample metadata
-  meta <- read.table('./dat/Olli_HelSummerTrends_meta.txt', header = TRUE, sep = '\t') # 4630 samples
+  meta <- read.table('./dat/HelSummerTrends_meta.txt', header = TRUE, sep = '\t') # 4630 samples
   
   # load long format species data
-  dat <- read.table('./dat/Olli_HelSummerTrends_species.txt', header = TRUE, sep = '\t') # 155301 × 4
+  dat <- read.table('./dat/HelSummerTrends_species.txt', header = TRUE, sep = '\t') # 155301 × 4
   
   # load worms classification table
-  bscl <- read.table('./dat/Olli_HelSummerTrends_bscl.txt', header = TRUE, sep = '\t')
+  bscl <- read.table('./dat/HelSummerTrends_bscl.txt', header = TRUE, sep = '\t')
   
   # add taxon name to dat
   dat <- left_join(dat, select(bscl, id, valid_name), by = c('valid_AphiaID' = 'id'))
@@ -100,11 +98,13 @@ if(T){ # provides data tables dat, meta. bscl
 ## SPLIT THE STATIONS TO INNER AND OUTER ARCHIPELAGO ####
 
 if(T){ #  provides datmds, stni, stno, updates meta with inner/outer split
-  if(F){ # NB! long calculation
-    datmds <- metaMDS(datcm, k = 2) # may take some time, ca 30 min on my laptop
-    save(datmds, file = 'Olli_HelSummerTrends_datmds.rda')
-  } # NB! long calculation
-  load(file = './bin/Olli_HelSummerTrends_datmds.rda')
+  
+  if(T){# NB long calculation
+    if(!file.exists('bin/HelSummerTrends_datmds.rda')){
+      datmds <- metaMDS(datcm, k = 2) # may take some time, ca 30 min on my laptop
+      save(datmds, file = './bin/HelSummerTrends_datmds.rda')
+    } else {load(file = './bin/HelSummerTrends_datmds.rda')}
+  } # NB long calculation
   
   # the fist global nmds ordination axis correlates with time; the second axis correlates with the coastal-pelagic gradient. 
   # we rotate the ordination to make station depth (proxy of the coastal-pelagic gradient) parallel to the 1st ordination axis
@@ -138,7 +138,7 @@ if(T){ #  provides datmds, stni, stno, updates meta with inner/outer split
 
 ## Fig 1S, global NMDS ##
 
-if(T){ # saves file Olli_HelSummerTrends_Figure1S
+if(T){ # saves file HelSummerTrends_Figure1S
   # Fig 1S global nmds ordination of samples, showing the split between inner bay and pelagic stations, and the station centres of gravity along the coasta-pelagic gradient
   
   mdsGlobal   <- scores(datmds)[rownames(meta), ] %>% data.frame() %>% cbind(select(meta, stn, dist, lat, lon, stnDepth, pel))
@@ -151,13 +151,13 @@ if(T){ # saves file Olli_HelSummerTrends_Figure1S
     theme(legend.position = c(0.75, 0.85), legend.background = element_rect(fill = 0)) +
     theme(axis.title = element_text(size = 18), axis.text = element_text(size = 18),legend.text = element_text(size = 14), legend.title = element_text(size = 14)) 
   
-   ggsave2(Fig1S, file = './fig/Olli_HelSummerTrends_FigureS1.pdf', width = 6, height = 6)
-   # ggsave2(Fig1S, file = './Olli_HelSummerTrends_FigureS1.svg', width = 6, height = 6)
-} # saves file Olli_HelSummerTrends_Figure1S
+   ggsave2(Fig1S, file = './fig/HelSummerTrends_FigureS1.pdf', width = 6, height = 6)
+   # ggsave2(Fig1S, file = './HelSummerTrends_FigureS1.svg', width = 6, height = 6)
+} # saves file HelSummerTrends_Figure1S
 
 # Fig 1 STATION MAP ####
 
-if(T){ # saves file Olli_HelSummerTrends_Figure1.pdf
+if(T){ # saves file HelSummerTrends_Figure1.pdf
   library(maptools); gpclibPermit();  gpclibPermitStatus(); rgeosStatus() 
   
   # for the coastlines we need gshhs_f.b and gshhs_l.b binary files, freely available from http://www.soest.hawaii.edu/pwessel/gshhg/
@@ -170,7 +170,7 @@ if(T){ # saves file Olli_HelSummerTrends_Figure1.pdf
   df <- st_as_sf(x = mdsGlobalAg, coords = c("lon", "lat"), crs = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
   
   # Baltic Sea insert map
-  ggm1 <- ggplot(data = BS) + geom_sf(fill = 'whitesmoke') + theme_void() + geom_sf(data = st_as_sfc(st_bbox(BZ_sf)), fill = NA, color = 'red', size = 0.8 )
+  ggm1 <- ggplot(data = BS) + geom_sf(fill = 'whitesmoke') + theme_void() + geom_sf(data = st_as_sfc(st_bbox(BZ)), fill = NA, color = 'red', size = 0.8 )
   ggm1 <- ggplot(data = BS) + geom_sf(fill = 'whitesmoke') + theme_void() + geom_sf(data = st_as_sfc(st_bbox(BZ)), fill = NA, color = 'red', size = 0.8 )
   
   library(ggsflabel)
@@ -193,10 +193,10 @@ if(T){ # saves file Olli_HelSummerTrends_Figure1.pdf
     draw_plot(ggm2) +
     draw_plot(ggm1, scale = 0.4, halign = 1.11, valign = 0.145)
   
-  ggsave2(Figure1, file = './fig/Olli_HelSummerTrends_Figure1.pdf', width = 7.5, height = 6.5)
-  # ggsave2(Figure1, file = './Olli_HelSummerTrends_Figure1.svg', width = 7.5, height = 6.5, device = 'svg')
+  ggsave2(Figure1, file = './fig/HelSummerTrends_Figure1.pdf', width = 7.5, height = 6.5)
+  # ggsave2(Figure1, file = './HelSummerTrends_Figure1.svg', width = 7.5, height = 6.5, device = 'svg')
   
-} # saves file Olli_HelSummerTrends_Figure1
+} # saves file HelSummerTrends_Figure1
 
 ## MAIN CALCULATION ####
 
@@ -219,10 +219,16 @@ if(T){ # saves file Olli_HelSummerTrends_Figure1.pdf
     # NMDS COMMUNITY ORDINATION ####
     
     # 1. perform ndms on outer archipelago and inner bay phytoplankton communities separately
-    # NB long calculation
-    MDSl <- list()
-    MDSl[['in']]  <- metaMDS(MXl[['in']],  k = 2, trymax = 50)
-    MDSl[['out']] <- metaMDS(MXl[['out']], k = 2, trymax = 50)
+    
+    if(T){# NB long calculation
+      if(!file.exists('bin/MDSl.rda')){x
+        MDSl <- list()
+        MDSl[['in']]  <- metaMDS(MXl[['in']],  k = 2, trymax = 50)
+        MDSl[['out']] <- metaMDS(MXl[['out']], k = 2, trymax = 50)
+        save(MDSl, file = './bin/MDSl.rda')
+      } else {load(file = './bin/MDSl.rda')}
+    } # NB long calculation
+   
     
     # 2. categorize the samples based on nmds ordination
     
@@ -244,7 +250,7 @@ if(T){ # saves file Olli_HelSummerTrends_Figure1.pdf
  
  if(T){ # diversity profiles; provides DqzPDiv and RenyiD, and updates meta with diversity profiles
    # we load a modified vegan::renyi function, which allows for negative orders of diversity (overweighting rare species)
-   source('./Olli_HelSummerTrends_renyi2.R')
+   source('./scr/HelSummerTrends_renyi2.R')
    
    ## Helper functions
    nrm <- function(x){x/sum(x)} # normalization, sum to 1
@@ -254,7 +260,7 @@ if(T){ # saves file Olli_HelSummerTrends_Figure1.pdf
    datcm.lst <- mclapply(1:nrow(datcm), function(x){x <- nrm(datcm[x, which(datcm[x, ] > 0), drop = FALSE]); cnames <- colnames(x); x <- c(x); names(x) <- cnames; return(x)}, mc.cores = 12)
    
    # load species phylogeny
-   bstree <- ape::read.tree(file = "./Olli_HelSummerTrends_bstree.txt")
+   bstree <- ape::read.tree(file = "./dat/HelSummerTrends_bstree.txt")
    bstree$tip.label <- gsub('_',' ', bstree$tip.label)
    
    # calculate phylogenetic distance matrix
@@ -320,7 +326,7 @@ if(T){# calculate vegan::envfit
 # sample symbol will correspond to clusterswe add ellipses to highlight the clusters
 # we also add envfit vectors for selected environmental variables
 
-if(T){  #  NMDS plot as Olli_HelSummerTrends_Figure2.pdf
+if(T){  #  NMDS plot as HelSummerTrends_Figure2.pdf
   
   # prepare arrows
   tmp <- sapply(ENVFITl.lst[[1]], '[', 'vectors') %>% sapply('[', 'arrows')
@@ -362,10 +368,10 @@ if(T){  #  NMDS plot as Olli_HelSummerTrends_Figure2.pdf
   
   
   Figure2 <- plot_grid(Fig2a, Fig2b, labels = "AUTO", label_size = 24) # glue panels together
-  cowplot::save_plot("Olli_HelSummerTrends_Figure2.pdf", Figure2, ncol = 2, base_height = 6, base_width = 6)
-  cowplot::save_plot("Olli_HelSummerTrends_Figure2.svg", Figure2, ncol = 2, base_height = 6, base_width = 6)
+  cowplot::save_plot("./fig/HelSummerTrends_Figure2.pdf", Figure2, ncol = 2, base_height = 6, base_width = 6)
+  # cowplot::save_plot("./fig/HelSummerTrends_Figure2.svg", Figure2, ncol = 2, base_height = 6, base_width = 6)
 
-} # saves Fig 2 NMDS plot as Olli_HelSummerTrends_Figure2
+} # saves Fig 2 NMDS plot as HelSummerTrends_Figure2
 
 #### Fig 3 NMDS1 and species richness trends ####
 
@@ -380,7 +386,7 @@ if(T){  #  NMDS plot as Olli_HelSummerTrends_Figure2.pdf
 # the GAM smooth trend line is split into sections of significant increase (red) or decrease (black) - i.e. the derivative of the slope is significantly
 # the variance explained is notably lower than with NMDS1 scores
 
-if(T){ # saves Fig 3 NMDS and richness trends as Olli_HelSummerTrends_Figure3.pdf
+if(T){ # saves Fig 3 NMDS and richness trends as HelSummerTrends_Figure3.pdf
   
   ctrl <- list(niterEM = 0, msVerbose = FALSE, optimMethod="L-BFGS-B")
   # m0 model
@@ -478,10 +484,10 @@ if(T){ # saves Fig 3 NMDS and richness trends as Olli_HelSummerTrends_Figure3.pd
     theme(axis.title = element_text(size = 18), axis.text = element_text(size = 18), legend.text = element_text(size = 14), legend.title = element_text(size = 14)) 
 
   Figure3 <- plot_grid(Fig3A, Fig3B, Fig3C, Fig3D, labels = "AUTO", label_size = 18) # glue panels together
-  cowplot::save_plot("./Olli_HelSummerTrends_Figure3.pdf", Figure3, ncol=2, base_height = 12, base_width = 8)
-  cowplot::save_plot("./Olli_HelSummerTrends_Figure3.svg", Figure3, ncol=2, base_height = 12, base_width = 8)
+  cowplot::save_plot("./fig/HelSummerTrends_Figure3.pdf", Figure3, ncol=2, base_height = 12, base_width = 8)
+  # cowplot::save_plot("./fig/HelSummerTrends_Figure3.svg", Figure3, ncol=2, base_height = 12, base_width = 8)
   
-} # saves Fig 3 NMDS1 and richness trends as Olli_HelSummerTrends_Figure3.pdf
+} # saves Fig 3 NMDS1 and richness trends as HelSummerTrends_Figure3.pdf
 
 #### Fig S6 evenness trends ####
 
@@ -490,7 +496,7 @@ if(T){ # saves Fig 3 NMDS and richness trends as Olli_HelSummerTrends_Figure3.pd
 # symbols correspond to sample clusters, color corresponds to NMDS1 score values
 # the GAM smooth trend line is split into sections of significant increase (red) or decrease (black) - i.e. the derivative of the slope is significantly
 
-if(T){ # saves Fig S6 richness trends as Olli_HelSummerTrends_FigureS6.pdf
+if(T){ # saves Fig S6 richness trends as HelSummerTrends_FigureS6.pdf
   ctrl <- list(niterEM = 0, msVerbose = FALSE, optimMethod="L-BFGS-B")
   # m0 model
   m0  <- gamm(E10 ~ s(time, bs = 'tp') + s(jul),  data = filter(meta, pel == 1), correlation = corCAR1(form = ~ 1|year), control = ctrl, method="REML")
@@ -539,10 +545,9 @@ if(T){ # saves Fig S6 richness trends as Olli_HelSummerTrends_FigureS6.pdf
     theme(axis.title = element_text(size = 18), axis.text = element_text(size = 18),legend.text = element_text(size = 14), legend.title = element_text(size = 14)) 
   
   FigureS6 <- plot_grid(FigS6A, FigS6B, labels = "AUTO", label_size = 24) # glue panels together
-  cowplot::save_plot("Olli_HelSummerTrends_FigureS6.pdf", FigureS6, ncol = 2, base_height = 6, base_width = 6)
-  cowplot::save_plot("Olli_HelSummerTrends_FigureS6.svg", FigureS6, ncol = 2, base_height = 6, base_width = 6)
-} # saves Fig S6 richness trends as Olli_HelSummerTrends_FigureS6
-
+  cowplot::save_plot("./fig/HelSummerTrends_FigureS6.pdf", FigureS6, ncol = 2, base_height = 6, base_width = 6)
+  # cowplot::save_plot("./fig/HelSummerTrends_FigureS6.svg", FigureS6, ncol = 2, base_height = 6, base_width = 6)
+} # saves Fig S6 richness trends as HelSummerTrends_FigureS6
 
 #### Fig 4 SPECIES CUMULATIVE LIKELIHOOD BLOCK ####
 
@@ -551,7 +556,7 @@ if(T){ # saves Fig S6 richness trends as Olli_HelSummerTrends_FigureS6.pdf
 # We order the species along time by calculating the the center of gravity of occurrence likelihood along the time axis
 
 
-if(T){  # saves species likelihood figure Olli_HelSummerTrends_Figure4.pdf 
+if(T){  # saves species likelihood figure HelSummerTrends_Figure4.pdf 
   
   # Species likelihood matrices ##
   # We use binary response (presence/absence) and delete rare species (5 or less occurrences) and at least genus level or lower taxonomic level
@@ -566,6 +571,7 @@ if(T){  # saves species likelihood figure Olli_HelSummerTrends_Figure4.pdf
   predcumul1 <- matrix(0, ncol = ncol(datcm1), nrow = nrow(dtdf), dimnames = list(as.character(dtdf$time), colnames(datcm1))) # 213 344
   
   # Fill the matrices with binomial GAM predictions, one species at a time
+  
   # NB long calculation
   for(i in 1:ncol(predcumul1)){
     predcumul1[, i] <- predict(gam(datcm1[, i] ~ s(time), data = meta[rownames(datcm1), ], family = binomial, method = 'REML'), dtdf, type  = 'response')
@@ -653,10 +659,10 @@ if(T){  # saves species likelihood figure Olli_HelSummerTrends_Figure4.pdf
     theme(axis.title = element_text(size = 18), axis.text = element_text(size = 18)) 
   
   Fig4 <- plot_grid(Fig4A, Fig4B, labels = "AUTO", label_size = 24) # glue panels together
-  cowplot::save_plot("./Olli_HelSummerTrends_Figure4.pdf", Fig4, ncol=2, base_height = 6, base_width = 6)
-  cowplot::save_plot("./Olli_HelSummerTrends_Figure4.svg", Fig4, ncol=2, base_height = 6, base_width = 6)
+  cowplot::save_plot("./fig/HelSummerTrends_Figure4.pdf", Fig4, ncol=2, base_height = 6, base_width = 6)
+  # cowplot::save_plot("./fig/HelSummerTrends_Figure4.svg", Fig4, ncol=2, base_height = 6, base_width = 6)
   
-} # saves species likelihood figure Olli_HelSummerTrends_Figure4.pdf 
+} # saves species likelihood figure HelSummerTrends_Figure4.pdf 
 
 ### Tables S2 and S3  ####
 
@@ -704,15 +710,18 @@ if(T){ # species likelihood tables
 # first we build a table of pairwise dissimilarities. As we have a total of 4630 samples, this gives us 4630*4629/2 = 10,716,135 pairwise dissimilarities
 # to visualize the trends in beta diversity, we calculate mean dissimilarities per year, constraining the sample pairs to the same year, month (to avoid seasonal confounding effect), and station (to avoid spatial confounding effect)
 
-if(TRUE){ # make df - the beta table
+if(T){ # make df - the beta table
   # sqrt transform the community raw community matrix
   datcmsqrt <- sqrt(datcm[as.character(meta$sampleID), ])
   
-  if(F){ # NB long calculation
-    beta.decomposition <- adespatial::beta.div.comp(datcmsqrt, coef = "S", quant = T) # D%diff, Sørensen aka Bray
-    save(beta.decomposition, file = 'Olli_HelSummerTrends_beta_decomposition.rda')
+  
+  
+  if(T){# NB long calculation
+    if(!file.exists('bin/HelSummerTrends_beta_decomposition.rda')){
+      beta.decomposition <- adespatial::beta.div.comp(datcmsqrt, coef = "S", quant = T) # D%diff, Sørensen aka Bray
+      save(beta.decomposition, file = './bin/HelSummerTrends_beta_decomposition.rda')
+    } else {load(file = './bin/HelSummerTrends_beta_decomposition.rda')}
   } # NB long calculation
-  load(file = 'Olli_HelSummerTrends_beta_decomposition.rda')
   # provides S1 = mean(S1d), S1rich = mean(S1rich), S1repl = mean(S1repl)
   
   # construct pairwise distance table
@@ -755,7 +764,7 @@ if(T){ # beta statistics
 
 ### Fig. 5 TRENDS IF BETA DIVERSITY ####
 
-if(T){ # saves Fig 5 beta diversity trends as Olli_HelSummerTrends_Figure5.pdf
+if(T){ # saves Fig 5 beta diversity trends as HelSummerTrends_Figure5.pdf
   F5A <- filter(betadf, mone == mons, stns == stne, stns %in% stni,  Dyear < 4) %>% group_by(years, Dyear) %>% dplyr::summarise(S = mean(S)) # 150 x 5
   # outer stations
   F5B <- filter(betadf, mone == mons, stns == stne, stns %in% stno,  Dyear < 4) %>% group_by(years, Dyear) %>%  dplyr::summarise(S = mean(S)) # 206 x 5
@@ -785,15 +794,15 @@ if(T){ # saves Fig 5 beta diversity trends as Olli_HelSummerTrends_Figure5.pdf
     theme(axis.title = element_text(size = 18), axis.text = element_text(size = 18),legend.text = element_text(size = 14), legend.title = element_text(size = 14), legend.key.width= unit(1.5, 'cm')) 
   
   Figure5 <- plot_grid(Fig5B, Fig5A, labels = "AUTO", label_size = 24) # glue panels together
-  cowplot::save_plot("./Olli_HelSummerTrends_Figure5.pdf", Figure5, ncol = 2, base_height = 6, base_width = 6)
-  cowplot::save_plot("./Olli_HelSummerTrends_Figure5.svg", Figure5, ncol = 2, base_height = 6, base_width = 6)
+  cowplot::save_plot("./fig/HelSummerTrends_Figure5.pdf", Figure5, ncol = 2, base_height = 6, base_width = 6)
+  # cowplot::save_plot("./fig/HelSummerTrends_Figure5.svg", Figure5, ncol = 2, base_height = 6, base_width = 6)
   
-} # saves Fig 5 beta diversity trends as Olli_HelSummerTrends_Figure5.pdf
+} # saves Fig 5 beta diversity trends as HelSummerTrends_Figure5.pdf
 
 ### Fig. 6 TRENDS IN SPATIAL BETA DIVERSITY ####
 ## aka inter-station beta
 
-if(T){ # saves Fig 6 beta diversity trends as Olli_HelSummerTrends_Figure6.pdf
+if(T){ # saves Fig 6 beta diversity trends as HelSummerTrends_Figure6.pdf
   # inner stations
   F6A <- filter(betadf, mone == mons, stns != stne, stns %in% stni,  Dyear < 1) %>% group_by(years, Dyear) %>% dplyr::summarise(S = mean(S)) # 254 x  5
   # outer stations
@@ -812,14 +821,14 @@ if(T){ # saves Fig 6 beta diversity trends as Olli_HelSummerTrends_Figure6.pdf
     scale_x_continuous(breaks = seq(1970, 2020, by = 10), limits = c(1965, 2020)) + 
     theme(axis.title = element_text(size = 18), axis.text = element_text(size = 18),legend.text = element_text(size = 14)) 
   
-  ggsave('./Olli_HelSummerTrends_Figure6.pdf', Figure6, width = 6, height = 6)
-  ggsave('./Olli_HelSummerTrends_Figure6.svg', Figure6, width = 6, height = 6)
+  ggsave('./fig/HelSummerTrends_Figure6.pdf', Figure6, width = 6, height = 6)
+  # ggsave('./fig/HelSummerTrends_Figure6.svg', Figure6, width = 6, height = 6)
   
-} # saves Fig 6 beta diversity trends as Olli_HelSummerTrends_Figure6.pdf
+} # saves Fig 6 beta diversity trends as HelSummerTrends_Figure6.pdf
 
 ### Fig. 7 BETA DIVERSITY DECOMPOSITION ####
 
-if(T){ # saves Fig 7 beta diversity trends as Olli_HelSummerTrends_Figure7.pdf
+if(T){ # saves Fig 7 beta diversity trends as HelSummerTrends_Figure7.pdf
   
   # month and station constrained beta decomposition with 0 and 3 year lag
   # inner stations
@@ -852,14 +861,14 @@ if(T){ # saves Fig 7 beta diversity trends as Olli_HelSummerTrends_Figure7.pdf
   
   F7 <- plot_grid(Fig7B, Fig7A, labels = "AUTO", label_size = 24) # glue panels together
   
-  cowplot::save_plot("./Olli_HelSummerTrends_Figure7.pdf", F7, ncol = 2, base_height = 6, base_width = 6)
-  cowplot::save_plot("./Olli_HelSummerTrends_Figure7.svg", F7, ncol = 2, base_height = 6, base_width = 6)
+  cowplot::save_plot("./fig/HelSummerTrends_Figure7.pdf", F7, ncol = 2, base_height = 6, base_width = 6)
+  # cowplot::save_plot("./fig/HelSummerTrends_Figure7.svg", F7, ncol = 2, base_height = 6, base_width = 6)
   
-} # # saves Fig 7 beta diversity trends as Olli_HelSummerTrends_Figure7.pdf
+} # # saves Fig 7 beta diversity trends as HelSummerTrends_Figure7.pdf
 
 ### Fig. 8 DISTANCE DECAY ####
 
-if(T){ # saves Fig 9 beta diversity trends as Olli_HelSummerTrends_Figure9.pdf
+if(T){ # saves Fig 9 beta diversity trends as HelSummerTrends_Figure9.pdf
   
   DisDec <- filter(betadf, stns == stne) %>% select(Dobs, stne, S)
   DisDec <- mutate(DisDec, S = 1-S) # distance to similarity
@@ -911,14 +920,14 @@ if(T){ # saves Fig 9 beta diversity trends as Olli_HelSummerTrends_Figure9.pdf
   
   Fig8 <- plot_grid(F8B, F8A, labels = "AUTO", label_size = 24) # glue panels together
   
-  cowplot::save_plot("./Olli_HelSummerTrends_Figure8.pdf", Fig8, ncol = 2, base_height = 6, base_width = 6)
-  cowplot::save_plot("./Olli_HelSummerTrends_Figure8.svg", Fig8, ncol = 2, base_height = 6, base_width = 6)
-}  # saves Fig 8 beta diversity trends as Olli_HelSummerTrends_Figure8.pdf
+  cowplot::save_plot("./fig/HelSummerTrends_Figure8.pdf", Fig8, ncol = 2, base_height = 6, base_width = 6)
+  # cowplot::save_plot("./fig/HelSummerTrends_Figure8.svg", Fig8, ncol = 2, base_height = 6, base_width = 6)
+}  # saves Fig 8 beta diversity trends as HelSummerTrends_Figure8.pdf
 
 
 ###  Fig. S2 GAM EFFECT SIZE ####
 
-if(FALSE){ # saves Fig S2 beta diversity trends as Olli_HelSummerTrends_FigureS2.pdf
+if(T){ # saves Fig S2 beta diversity trends as HelSummerTrends_FigureS2.pdf
   
   ctrl <- list(niterEM = 0, msVerbose = FALSE, optimMethod="L-BFGS-B")
   FigS2_meta <- filter(meta, pel == 1) %>% rename('doy' = jul)
@@ -926,10 +935,10 @@ if(FALSE){ # saves Fig S2 beta diversity trends as Olli_HelSummerTrends_FigureS2
   mod <- gamm(N0 ~ s(time, bs = 'tp') + s(doy),  data = FigS2_meta, correlation = corCAR1(form = ~ 1|year), control = ctrl, method="REML")
   
   FigS2 <- gratia::draw(mod$gam)
-  cowplot::save_plot("./Olli_HelSummerTrends_FigureS2.pdf", FigS2, base_height = 3, base_width = 6)
-  cowplot::save_plot("./Olli_HelSummerTrends_FigureS2.svg", FigS2, base_height = 3, base_width = 6)
+  cowplot::save_plot("./fig/HelSummerTrends_FigureS2.pdf", FigS2, base_height = 3, base_width = 6)
+  #cowplot::save_plot("./fig/HelSummerTrends_FigureS2.svg", FigS2, base_height = 3, base_width = 6)
   
-} # saves Fig S2 beta diversity trends as Olli_HelSummerTrends_FigureS2.pdf
+} # saves Fig S2 beta diversity trends as HelSummerTrends_FigureS2.pdf
 
 
 #### The effect of microscopists ####
@@ -981,46 +990,46 @@ if(T){ # mantel/adonis block for Table 1 and Fig S3
   # Table 1 env.var needs: 
   env.var <- c('year','jul','Ptot','Ntot','PO4','NO3','NH4','pH','Salin','Temp','chla','N0','E10', grep('Dqz|RenyiD', names(meta), value = T))
   
-  if(F){ # long calculations
-    MANTELl.lst <- list()
-    for(i in 1:length(MXl)){
-      com <- MXl[[i]]
-      print(i)
-      MANTELl.lst[[i]] <- mclapply(meta[rownames(com), env.var], function(x){ # takes env dataframe columns one at a time as list elements
-        idx <- which(!is.na(x)) # check if NAs exist
-        env.dis <- x[idx] %>% decostand(method = 'standardize') %>% stats::dist()
-        com <- com[idx,] # use only samples, with non-NA environmental record
-        com <- com[ ,colSums(com) > 0] # delete species with no occurrence
-        com.dis <- vegdist(wisconsin(sqrt(com)),"bray") # use bray distance similar to NMDS
-        mantel(com.dis, env.dis, perm = 1, parallel = 1)
-      }, mc.cores = detectCores())
-    } # 230 sek
-    
-    
-    ADONIS.lst <- list()
-    for(i in 1:length(MXl)){
-      com <- MXl[[i]]
-      print(i)
-      ADONIS.lst[[i]] <- mclapply(meta[rownames(com), env.var], function(x){ # takes env dataframe columns one at a time as list elements
-        idx <- which(!is.na(x)) # check if NAs exist
-        env.df <- data.frame(var = x[idx])
-        com <- com[idx, ] # use only samples, with non-NA environmental record
-        com <- com[ ,colSums(com) > 0] # delete species with no occurrence
-        com.dis <- vegdist(wisconsin(sqrt(com)),"bray") # use bray distance similar to NMDS
-        adonis2(com.dis~var, data = env.df, perm = 1, parallel = 1)
-      }, mc.cores = detectCores())
-    }
-    
-    save(MANTELl.lst, ADONIS.lst , file = 'Olli_HelSummerTrends_mantel_adonis.rda')
-    
-  } # long calculations
-  load(file = 'Olli_HelSummerTrends_mantel_adonis.rda')
-
+  if(T){# NB long calculation
+    if(!file.exists('bin/HelSummerTrends_mantel_adonis.rda')){
+      
+      MANTELl.lst <- list()
+      for(i in 1:length(MXl)){
+        com <- MXl[[i]]
+        print(i)
+        MANTELl.lst[[i]] <- mclapply(meta[rownames(com), env.var], function(x){ # takes env dataframe columns one at a time as list elements
+          idx <- which(!is.na(x)) # check if NAs exist
+          env.dis <- x[idx] %>% decostand(method = 'standardize') %>% stats::dist()
+          com <- com[idx,] # use only samples, with non-NA environmental record
+          com <- com[ ,colSums(com) > 0] # delete species with no occurrence
+          com.dis <- vegdist(wisconsin(sqrt(com)),"bray") # use bray distance similar to NMDS
+          mantel(com.dis, env.dis, perm = 1, parallel = 1)
+        }, mc.cores = detectCores())
+      } # 230 sek
+      
+      ADONIS.lst <- list()
+      for(i in 1:length(MXl)){
+        com <- MXl[[i]]
+        print(i)
+        ADONIS.lst[[i]] <- mclapply(meta[rownames(com), env.var], function(x){ # takes env dataframe columns one at a time as list elements
+          idx <- which(!is.na(x)) # check if NAs exist
+          env.df <- data.frame(var = x[idx])
+          com <- com[idx, ] # use only samples, with non-NA environmental record
+          com <- com[ ,colSums(com) > 0] # delete species with no occurrence
+          com.dis <- vegdist(wisconsin(sqrt(com)),"bray") # use bray distance similar to NMDS
+          adonis2(com.dis~var, data = env.df, perm = 1, parallel = 1)
+        }, mc.cores = detectCores())
+      }
+  
+      save(beta.decomposition, file = './bin/HelSummerTrends_mantel_adonis.rda')
+    } else {load(file = './bin/HelSummerTrends_mantel_adonis.rda')}
+  } # NB long calculation
+  
 } ## mantel/adonis block for Table 1 and Fig S3
 
 #### Fig. S3 DIVERSITY PROFILES AS CORRELATES WIHT ORDINATION ####
 
-if(T){ # saves Fig S3 beta diversity trends as Olli_HelSummerTrends_FigureS3.pdf
+if(T){ # saves Fig S3 beta diversity trends as HelSummerTrends_FigureS3.pdf
   
   # extract diversity profile statistics
   envfitl.r <- lapply(ENVFITl.lst, function(x){sapply(x, '[', 'vectors') %>% sapply('[', 'r') %>% unlist()}) # length 159
@@ -1093,10 +1102,10 @@ if(T){ # saves Fig S3 beta diversity trends as Olli_HelSummerTrends_FigureS3.pdf
   
   FigS3 <- plot_grid(enpl, mapl, adpl, labels = "AUTO", label_size = 18,  ncol = 1)
   
-  cowplot::save_plot("./Olli_HelSummerTrends_FigureS3.pdf", FigS3, base_height = 8, base_width = 5)
-  cowplot::save_plot("./Olli_HelSummerTrends_FigureS3.svg", FigS3, base_height = 8, base_width = 5)
+  cowplot::save_plot("./fig/HelSummerTrends_FigureS3.pdf", FigS3, base_height = 8, base_width = 5)
+  # cowplot::save_plot("./figHelSummerTrends_FigureS3.svg", FigS3, base_height = 8, base_width = 5)
   
-} # saves Fig S3 beta diversity trends as Olli_HelSummerTrends_FigureS3.pdf
+} # saves Fig S3 beta diversity trends as HelSummerTrends_FigureS3.pdf
 
 ### TABLE 1 ####
 
@@ -1125,7 +1134,7 @@ if(T){ # Table 1
 
 #### HIERARCHICAL GAMM BLOCK; Figs S4, S5, Table S1 ####
 
-if(T){ # Hierarchical GAM; provides Table S1, saves Olli_HelSummerTrends_FigureS4.pdf, Olli_HelSummerTrends_FigureS5.pdf
+if(T){ # Hierarchical GAM; provides Table S1, saves HelSummerTrends_FigureS4.pdf, HelSummerTrends_FigureS5.pdf
   
   ctrl <- list(niterEM = 0, msVerbose = TRUE, optimMethod="L-BFGS-B")
   # easier to split the inner bay and outer archipelago part of meta into list elements
@@ -1193,8 +1202,8 @@ hgam_E10 <- XXgamm('E10')
   
     theme(axis.title = element_text(size = 18), axis.text = element_text(size = 18)) 
   
-  ggsave('./Olli_HelSummerTrends_FigureS4.pdf', Fig4S, width = 6, height = 6)
-  ggsave('./Olli_HelSummerTrends_FigureS4.svg', Fig4S, width = 6, height = 6)
+  ggsave('./fig/HelSummerTrends_FigureS4.pdf', Fig4S, width = 6, height = 6)
+  # ggsave('./fig/HelSummerTrends_FigureS4.svg', Fig4S, width = 6, height = 6)
   
   ## FIG S5 ####
   # Supplementary Fig S5 - model GI faceted gam fit species richness
@@ -1209,16 +1218,16 @@ hgam_E10 <- XXgamm('E10')
     geom_line(aes(x = time, y = I(fit-2*se.fit)), col = 'gray') +
     facet_wrap(~fstn) + xlab('Year') + ylab('Species richness')
   
-  ggsave('./Olli_HelSummerTrends_FigureS5.pdf', Fig5S, width = 6, height = 6)
-  ggsave('./Olli_HelSummerTrends_FigureS5.svg', Fig5S, width = 6, height = 6)
+  ggsave('./fig/HelSummerTrends_FigureS5.pdf', Fig5S, width = 6, height = 6)
+  # ggsave('./fig/HelSummerTrends_FigureS5.svg', Fig5S, width = 6, height = 6)
   
-} # Hierarchical GAM; provides Table S1, saves Olli_HelSummerTrends_FigureS4.pdf, Olli_HelSummerTrends_FigureS5.pdf
+} # Hierarchical GAM; provides Table S1, saves HelSummerTrends_FigureS4.pdf, HelSummerTrends_FigureS5.pdf
 
 
 #### Fig S7  NUTRIENT BLOCK ####
 
-if(TRUE){ # saves nutreint concentration figure figure Olli_HelSummerTrends_FigureS7.pdf 
-  nuts <- read.table(file = 'Olli_HelSummerTrends_Nutreints.txt', head = TRUE, sep = '\t')
+if(T){ # saves nutreint concentration figure figure HelSummerTrends_FigureS7.pdf 
+  nuts <- read.table(file = './dat/HelSummerTrends_Nutreints.txt', head = TRUE, sep = '\t')
 
   # actual plots
   FigS7_N0 <- ggplot(filter(nuts, var == 'ntot', pel == 0), aes(x=time, y=value)) + 
@@ -1252,6 +1261,6 @@ if(TRUE){ # saves nutreint concentration figure figure Olli_HelSummerTrends_Figu
     theme(axis.title = element_text(size = 12), axis.text = element_text(size = 12))
   
   FigS7 <- plot_grid(FigS7_N0, FigS7_P0, FigS7_N1, FigS7_P1, labels = "AUTO", label_size = 18) # glue panels together
-  cowplot::save_plot("./Olli_HelSummerTrends_FigureS7.pdf", FigS7, ncol=2, base_height = 6, base_width = 4)
-  cowplot::save_plot("./Olli_HelSummerTrends_FigureS7.svg", FigS7, ncol=2, base_height = 6, base_width = 4)
-} # saves nutreint concentration figure figure Olli_HelSummerTrends_FigureS7.pdf 
+  cowplot::save_plot("./fig/HelSummerTrends_FigureS7.pdf", FigS7, ncol=2, base_height = 6, base_width = 4)
+  # cowplot::save_plot("./fig/HelSummerTrends_FigureS7.svg", FigS7, ncol=2, base_height = 6, base_width = 4)
+} # saves nutrient concentration  figure HelSummerTrends_FigureS7.pdf 
