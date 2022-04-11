@@ -1,0 +1,31 @@
+---
+title: "What is it about"
+author: "Kalle Olli"
+date: "11 4 2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Half-century trends in alpha and beta diversity of phytoplankton summer communities in the Helsinki Archipelago, the Baltic Sea
+
+By:
+
+* Kalle Olli
+* Emil Nyman
+* Timo Tamminen
+
+### Abstract
+
+We analysed phytoplankton biodiversity trends in a 52 year (1967-2018) monitoring time-series from the archipelago of Helsinki, Gulf of Finland, the Baltic Sea. The community ordination revealed strong ordering of samples along the time axis (generalised additive model – gam fit: R2 = 0.9). Species richness increased in time and was the most influential alpha diversity descriptor related to the community structure (gam fit: R2 = 0.56-0.70). Changes in species richness accounted for 35-36% of the mean between-sample beta diversity. The remaining 64-65% was due to species turnover – the dominant component of the biodiversity trend. The temporal beta diversity trend reflected the eutrophication history of the geographically confined region, with a turning point in mid-1990’s demarking the adaptation and recovery phases of the phytoplankton community. Trends in spatial beta diversity revealed homogenisation of the communities in the outer archipelago zone, but not in the inner bays. The temporal decay of community similarity revealed high turnover rate, with 23.6 y halving time in the outer archipelago and 11.3 y in the inner bays, reflecting the differences in eutrophication strength. The observed phytoplankton trends reflect the regional eutrophication history, and dispersal of new species to the unsaturated brackish species pool.
+
+
+```{r cars}
+
+```
+
+### Keywords
+
+biodiversity trend, beta diversity, beta decomposition, species turnover, eutrophication
