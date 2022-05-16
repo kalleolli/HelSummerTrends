@@ -27,7 +27,7 @@
 # 21. Hierarchical GAM, Figs S4, S5, Table S1
 # 22. Nutrient block, saves HelSummerTrends_FigureS7.pdf
 
-# load libraries
+# load the needed libraries
 if(T){
   library(tidyverse)
   library(mgcv)
@@ -69,7 +69,7 @@ if(T){ # provides data tables dat, meta. bscl
   # make global community matrix - species in columns, samples in rows
   # this matrix is used for NMDS ordination, but only to split the sampling stations into inner bays and outer archipelago
   tmp <- group_by(dat, sampleID, valid_name) %>% summarise(ww = mean(ww, na.rm = T)) %>% pivot_wider(names_from = valid_name, values_from = ww)
-  datcm  <- data.matrix(tmp[ , -1])# community matrix on dat 4630 samples × 620 taxa
+  datcm  <- data.matrix(tmp[ , -1])# community matrix on dat 4630 samples × 619 taxa
   rownames(datcm) <- tmp[[1]] # add sampleID as rownames
   datcm[is.na(datcm)] <- 0 # change all NA's to zeros
   
@@ -206,15 +206,16 @@ if(T){ # saves file HelSummerTrends_Figure1.pdf
 # 4. external variable correlation with the NMDS community ordination, by using vegan::envfit
   
   if(T){ # community ordination
-    # We are ready to split the phytoplankton community matrix into inner bays and outer archipelago subsets, based on the newly created pel category
+    # We are ready to split the phytoplankton community matrix into inner bays and outer archipelago subsets, based on the newly created 'pel' category
     MXl <- list()
-    MXl[['out']] <- datcm[as.character(filter(meta, pel == 1)$sampleID), ] # 1115  619
-    MXl[['in']]  <- datcm[as.character(filter(meta, pel == 0)$sampleID), ] # 3515  619
+    MXl[['in']]  <- datcm[as.character(filter(meta, pel == 0)$sampleID), ] # 3515
+    MXl[['out']] <- datcm[as.character(filter(meta, pel == 1)$sampleID), ] # 1115
+    
     
     # remove columns with no species occurrences
     MXl <- lapply(MXl, function(x){x <- x[, colSums(x) > 0]})
     
-    sapply(MXl, dim) # remaining species richness: 546 and  505 taxa in outer archipelago and inner bays, respectively.
+    sapply(MXl, dim) # remaining species richness: 505 and  546 taxa in outer archipelago and inner bays, respectively.
     
     # NMDS COMMUNITY ORDINATION ####
     
@@ -234,10 +235,10 @@ if(T){ # saves file HelSummerTrends_Figure1.pdf
     
     KMEANSl <- mclapply(MDSl,  function(x){kmeans(scores(x), centers = 3, nstart = 100)})
     
-    clus = c(KMEANSl[[1]]$cluster, KMEANSl[[2]]$cluster)
+    clus = c(KMEANSl[['in']]$cluster, KMEANSl[['out']]$cluster)
     meta$clus <- clus[rownames(meta)]
     
-    mdscores <- rbind(scores(MDSl[[1]]), scores(MDSl[[2]]))
+    mdscores <- rbind(scores(MDSl[['in']]), scores(MDSl[['out']]))
     meta <- cbind(meta, mdscores[rownames(meta),])
     
   } # community ordination; provides 2-element lists: MXl, MDSl, KMEANSl
@@ -307,18 +308,14 @@ if(T){# calculate vegan::envfit
     # when NAs are present, run one variable at a time
     tmp.lst <- list()
     for(i in 1:length(ext_var)){
-      tmp.lst[[i]] <- envfit(x, filter(meta, sampleID %in% rownames(scores(x))) %>%  select(ext_var[i]), na.rm=TRUE)
+       tmp.lst[[i]] <- envfit(x, dplyr::filter(meta, sampleID %in% rownames(scores(x))) %>%  select(ext_var[i]), na.rm=TRUE)
     }
     # run diversity profiles in batch against NMDS ordinations
-    
-    res <- c(tmp.lst, list(envfit(x, filter(meta, sampleID %in% rownames(scores(x))) %>% select(!all_of(c(ext_var, 'sampleID','stn','obstime')))) ) )
-    return(res)
+     res <- c(tmp.lst, list(envfit(x, filter(meta, sampleID %in% rownames(scores(x))) %>% select(!all_of(c(ext_var, 'sampleID','stn','obstime')))) ) )
+     return(res)
   }, mc.cores = 2)
   
-  
-  # extract the correlation coefficients between the variable and ordination form th envfit objects
-  envfitl.r <- lapply(ENVFITl.lst, function(x){sapply(x, '[', 'vectors') %>% sapply('[', 'r') %>% unlist()}) # length 159
-} # calculate vegan::envfit; provides ENVFITl.lst list and envfitl.r summaries
+} # calculate vegan::envfit; provides ENVFITl.lst list
 
 #### Fig 2 NMDS ordination ####
 
@@ -328,11 +325,14 @@ if(T){# calculate vegan::envfit
 
 if(T){  #  NMDS plot as HelSummerTrends_Figure2.pdf
   
+  # extract the correlation coefficients between the variable and ordination from th envfit objects
+  envfitl.r <- lapply(ENVFITl.lst, function(x){sapply(x, '[', 'vectors') %>% sapply('[', 'r') %>% unlist()}) 
+  
   # prepare arrows
-  tmp <- sapply(ENVFITl.lst[[1]], '[', 'vectors') %>% sapply('[', 'arrows')
+  tmp <- sapply(ENVFITl.lst[['out']], '[', 'vectors') %>% sapply('[', 'arrows')
   ar <- do.call(rbind, lapply(tmp, rbind)) %>% data.frame
-  ar$r <- sapply(ENVFITl.lst[[1]], '[', 'vectors') %>% sapply('[', 'r') %>% unlist()
-  ar <- mutate(ar, NMDS1 = NMDS1 * 1.5 * r, NMDS2 = NMDS2 * 1.5 * r)[c('year','N0','E20','jul'),]
+  ar$r <- sapply(ENVFITl.lst[['out']], '[', 'vectors') %>% sapply('[', 'r') %>% unlist()
+  ar <- mutate(ar, NMDS1 = NMDS1 * 1.5 * r, NMDS2 = NMDS2 * 1.5 * r)[c('year','N0','E10','jul'),]
   ar$var <- c('Year', 'NSP', 'E', 'J')
   
   
@@ -348,11 +348,11 @@ if(T){  #  NMDS plot as HelSummerTrends_Figure2.pdf
     annotate('label', x = ar[, 'NMDS1'], y = ar[,'NMDS2'], label = ar[,'var'], size = 6, fontface = 'bold',  vjust = "outward", hjust = "outward", fill = 'white', alpha =  0.7, label.size = NA, label.padding = unit(0.1, "lines")) + 
     theme(axis.title = element_text(size = 18), axis.text = element_text(size = 18), legend.text = element_text(size = 14), legend.title = element_text(size = 14))
   
-  tmp <- sapply(ENVFITl.lst[[2]], '[', 'vectors') %>% sapply('[', 'arrows')
+  tmp <- sapply(ENVFITl.lst[['in']], '[', 'vectors') %>% sapply('[', 'arrows')
   ar <- do.call(rbind, lapply(tmp, rbind)) %>% data.frame
-  ar$r <- sapply(ENVFITl.lst[[2]], '[', 'vectors') %>% sapply('[', 'r') %>% unlist()
-  ar <- mutate(ar, NMDS1 = NMDS1 * 1.5 * r, NMDS2 = NMDS2 * 1.5 * r)[c('year','N0','pH','chla','PO4','Ptot'),]
-  ar$var <- c('Year', 'NSP','pH','chla', 'PO4','Ptot')   
+  ar$r <- sapply(ENVFITl.lst[['in']], '[', 'vectors') %>% sapply('[', 'r') %>% unlist()
+  ar <- mutate(ar, NMDS1 = NMDS1 * 1.5 * r, NMDS2 = NMDS2 * 1.5 * r)[c('year','N0','chla','PO4'),]
+  ar$var <- c('Year', 'NSP','chla', 'PO4')   
   
   Fig2b <- ggplot(filter(meta, pel == 0), aes(x=NMDS1, y=NMDS2, fill = time, shape = factor(clus))) +
     geom_point(size = 3) +
@@ -560,98 +560,98 @@ if(T){  # saves species likelihood figure HelSummerTrends_Figure4.pdf
   
   # Species likelihood matrices ##
   # We use binary response (presence/absence) and delete rare species (5 or less occurrences) and at least genus level or lower taxonomic level
-  datcm0 <-  decostand(MXl[[2]], 'pa') %>% .[, colSums(.) > 5] %>% .[, colnames(.) %in% filter(bscl, !is.na(Genus))$valid_name] # 1115  297
-  datcm1 <-  decostand(MXl[[1]], 'pa') %>% .[, colSums(.) > 5] %>% .[, colnames(.) %in% filter(bscl, !is.na(Genus))$valid_name] # 3515  345
+  datcm_out <-  decostand(MXl[['out']], 'pa') %>% .[, colSums(.) > 5] %>% .[, colnames(.) %in% filter(bscl, !is.na(Genus))$valid_name] # 1115
+  datcm_in <-  decostand(MXl[['in']], 'pa') %>% .[, colSums(.) > 5] %>% .[, colnames(.) %in% filter(bscl, !is.na(Genus))$valid_name] # 3515
   
   # define time sequence
   dtdf <- data.frame(time = seq(1966, 2019, by =  0.25))
   
   # initialize cumulative likelihood matrices for inner bays (cumlik0) and outer archipelago (cumlik1)
-  predcumul0 <- matrix(0, ncol = ncol(datcm0), nrow = nrow(dtdf), dimnames = list(as.character(dtdf$time), colnames(datcm0))) # 213 296
-  predcumul1 <- matrix(0, ncol = ncol(datcm1), nrow = nrow(dtdf), dimnames = list(as.character(dtdf$time), colnames(datcm1))) # 213 344
+  predcumul_out <- matrix(0, ncol = ncol(datcm_out), nrow = nrow(dtdf), dimnames = list(as.character(dtdf$time), colnames(datcm_out))) # 213 297
+  predcumul_in <- matrix(0, ncol = ncol(datcm_in), nrow = nrow(dtdf), dimnames = list(as.character(dtdf$time), colnames(datcm_in))) # 213 345
   
   # Fill the matrices with binomial GAM predictions, one species at a time
   
   # NB long calculation
-  for(i in 1:ncol(predcumul1)){
-    predcumul1[, i] <- predict(gam(datcm1[, i] ~ s(time), data = meta[rownames(datcm1), ], family = binomial, method = 'REML'), dtdf, type  = 'response')
+  for(i in 1:ncol(predcumul_in)){
+    predcumul_in[, i] <- predict(gam(datcm_in[, i] ~ s(time), data = meta[rownames(datcm_in), ], family = binomial, method = 'REML'), dtdf, type  = 'response')
   }
   # NB long calculation
-  for(i in 1:ncol(predcumul0)){
-    predcumul0[, i] <- predict(gam(datcm0[, i] ~ s(time), data = meta[rownames(datcm0), ], family = binomial, method = 'REML'),  dtdf, type  = 'response')
+  for(i in 1:ncol(predcumul_out)){
+    predcumul_out[, i] <- predict(gam(datcm_out[, i] ~ s(time), data = meta[rownames(datcm_out), ], family = binomial, method = 'REML'),  dtdf, type  = 'response')
   }
   
   # species temporal optimal along the time axis
-  dk1.opt <- array(dim=ncol(predcumul1))
-  for(i in 1:ncol(predcumul1)){
-    pred <- predcumul1[,i]
-    dk1.opt[i] <- weighted.mean(dtdf$time, predcumul1[, i])
+  dk_in.opt <- array(dim=ncol(predcumul_in))
+  for(i in 1:ncol(predcumul_in)){
+    pred <- predcumul_in[,i]
+    dk_in.opt[i] <- weighted.mean(dtdf$time, predcumul_in[, i])
   }
-  names(dk1.opt) <- colnames(predcumul1)
+  names(dk_in.opt) <- colnames(predcumul_in)
   
-  dk0.opt <- array(dim=ncol(predcumul0))
-  for(i in 1:ncol(predcumul0)){
-    pred <- predcumul0[,i]
-    dk0.opt[i] <- weighted.mean(dtdf$time, predcumul0[, i])
+  dk_out.opt <- array(dim=ncol(predcumul_out))
+  for(i in 1:ncol(predcumul_out)){
+    pred <- predcumul_out[,i]
+    dk_out.opt[i] <- weighted.mean(dtdf$time, predcumul_out[, i])
   }
-  names(dk0.opt) <- colnames(predcumul0)
+  names(dk_out.opt) <- colnames(predcumul_out)
   
   # re-order taxa according to their occurrence optima
   
-  dk0.opt.ord <- sort(dk0.opt)
-  dk1.opt.ord <- sort(dk1.opt)
+  dk_out.opt.ord <- sort(dk_out.opt)
+  dk_in.opt.ord <- sort(dk_in.opt)
   
-  predcumul1.ord <- predcumul1[, names(dk1.opt.ord)] 
-  predcumul0.ord <- predcumul0[, names(dk0.opt.ord)]
+  predcumul_out.ord <- predcumul_out[, names(dk_out.opt.ord)] 
+  predcumul_in.ord <- predcumul_in[, names(dk_in.opt.ord)]
   
   # split the taxa into thee groups, accordin to their optimal time of occurrence
-  tg0 <- data.frame(tax = names(dk0.opt), optloc = dk0.opt,  group = ntile(dk0.opt, 3)) %>% arrange(optloc)
-  tg1 <- data.frame(tax = names(dk1.opt), optloc = dk1.opt,  group = ntile(dk1.opt, 3)) %>% arrange(optloc)
+  tg_out <- data.frame(tax = names(dk_out.opt), optloc = dk_out.opt,  group = ntile(dk_out.opt, 3)) %>% arrange(optloc)
+  tg_in <- data.frame(tax = names(dk_in.opt), optloc = dk_in.opt,  group = ntile(dk_in.opt, 3)) %>% arrange(optloc)
   
   
   # data frames for cumulative likelihood plot
-  predcumul0.df <- data.frame(value = as.vector(predcumul0.ord), 
-                              time = rep(as.numeric(rownames(predcumul0.ord)), ncol(predcumul0.ord)), 
-                              tax = (rep(colnames(predcumul0.ord), each = nrow(predcumul0.ord))))
+  predcumul_out.df <- data.frame(value = as.vector(predcumul_out.ord), 
+                              time = rep(as.numeric(rownames(predcumul_out.ord)), ncol(predcumul_out.ord)), 
+                              tax = (rep(colnames(predcumul_out.ord), each = nrow(predcumul_out.ord))))
   
-  predcumul1.df <- data.frame(value = as.vector(predcumul1.ord), 
-                              time = rep(as.numeric(rownames(predcumul1.ord)), ncol(predcumul1.ord)), 
-                              tax = (rep(colnames(predcumul1.ord), each = nrow(predcumul1.ord))))
+  predcumul_in.df <- data.frame(value = as.vector(predcumul_in.ord), 
+                              time = rep(as.numeric(rownames(predcumul_in.ord)), ncol(predcumul_in.ord)), 
+                              tax = (rep(colnames(predcumul_in.ord), each = nrow(predcumul_in.ord))))
   
   # add order for plotting the area graph
-  predcumul0.df <- left_join(predcumul0.df, data.frame(tax = names(dk0.opt.ord), ord = dk0.opt.ord))
-  predcumul1.df <- left_join(predcumul1.df, data.frame(tax = names(dk1.opt.ord), ord = dk1.opt.ord))
+  predcumul_out.df <- left_join(predcumul_out.df, data.frame(tax = names(dk_out.opt.ord), ord = dk_out.opt.ord))
+  predcumul_in.df <- left_join(predcumul_in.df, data.frame(tax = names(dk_in.opt.ord), ord = dk_in.opt.ord))
   
   # data frame for discrete cumulative lines
   
-  linescumul0 <- data.frame(time = as.numeric(rownames(predcumul0.ord)), val1 = rowSums(predcumul0.ord), 
-                            val2 = rowSums(predcumul0.ord[, rownames(filter(tg0, group == 3))]),  
-                            val3 = rowSums(predcumul0.ord[, rownames(filter(tg0, group != 1))]) )
+  linescumul_out <- data.frame(time = as.numeric(rownames(predcumul_out.ord)), val1 = rowSums(predcumul_out.ord), 
+                            val2 = rowSums(predcumul_out.ord[, rownames(filter(tg_out, group == 3))]),  
+                            val3 = rowSums(predcumul_out.ord[, rownames(filter(tg_out, group != 1))]) )
   
-  linescumul1 <- data.frame(time = as.numeric(rownames(predcumul1.ord)), val1 = rowSums(predcumul1.ord), 
-                            val2 = rowSums(predcumul1.ord[, rownames(filter(tg1, group == 3))]),  
-                            val3 = rowSums(predcumul1.ord[, rownames(filter(tg1, group != 1))]) )
+  linescumul_in <- data.frame(time = as.numeric(rownames(predcumul_in.ord)), val1 = rowSums(predcumul_in.ord), 
+                            val2 = rowSums(predcumul_in.ord[, rownames(filter(tg_in, group == 3))]),  
+                            val3 = rowSums(predcumul_in.ord[, rownames(filter(tg_in, group != 1))]) )
   
   
   
-  Fig4A <- ggplot(predcumul0.df, aes(x = time, y = value)) +  
+  Fig4A <- ggplot(predcumul_out.df, aes(x = time, y = value)) +  
     geom_area(show.legend = FALSE, aes(fill = factor(ord))) +
-    scale_fill_discrete(type = colorRamps::matlab.like(ncol(predcumul0.ord))) +
-    geom_line(data = linescumul0, aes(x = time, y = val1), col = 1) +
-    geom_line(data = linescumul0, aes(x = time, y = val2), col = 1) +
-    geom_line(data = linescumul0, aes(x = time, y = val3), col = 1) +
+    scale_fill_discrete(type = colorRamps::matlab.like(ncol(predcumul_out.ord))) +
+    geom_line(data = linescumul_out, aes(x = time, y = val1), col = 1) +
+    geom_line(data = linescumul_out, aes(x = time, y = val2), col = 1) +
+    geom_line(data = linescumul_out, aes(x = time, y = val3), col = 1) +
     xlab('Year') + 
     ylab('Cumulative likelihood of presence') + 
     scale_y_continuous(expand = c(0,0), limits = c(0, 40), breaks = seq(0, 30, by = 10)) + 
     scale_x_continuous(expand = c(0,0), breaks = seq(1970, 2020, by = 10), limits = c(1966, 2015)) +
     theme(axis.title = element_text(size = 18), axis.text = element_text(size = 18)) 
   
-  Fig4B <- ggplot(predcumul1.df, aes(x = time, y = value)) +  
+  Fig4B <- ggplot(predcumul_in.df, aes(x = time, y = value)) +  
     geom_area(show.legend = FALSE, aes(fill = factor(ord))) +
-    scale_fill_discrete(type = colorRamps::matlab.like(ncol(predcumul1.ord))) +
-    geom_line(data = linescumul1, aes(x = time, y = val1), col = 1) +
-    geom_line(data = linescumul1, aes(x = time, y = val2), col = 1) +
-    geom_line(data = linescumul1, aes(x = time, y = val3), col = 1) +
+    scale_fill_discrete(type = colorRamps::matlab.like(ncol(predcumul_in.ord))) +
+    geom_line(data = linescumul_in, aes(x = time, y = val1), col = 1) +
+    geom_line(data = linescumul_in, aes(x = time, y = val2), col = 1) +
+    geom_line(data = linescumul_in, aes(x = time, y = val3), col = 1) +
     xlab('Year') + 
     ylab('Cumulative likelihood of presence') + 
     scale_y_continuous(expand = c(0,0), limits = c(0, 40), breaks = seq(0, 30, by = 10)) + 
@@ -669,33 +669,33 @@ if(T){  # saves species likelihood figure HelSummerTrends_Figure4.pdf
 if(T){ # species likelihood tables
   
   # cumulative table-S
-  tblS2a <- data.frame(valid_name =  names(dk0.opt), optloc = dk0.opt, freq = colSums(datcm0), ntile = ntile(dk0.opt, 3))
-  tblS2a <- left_join(tblS2a, select(bscl, valid_name, Kingdom, Class))
-  TableS2a <- table(tblS2a$Class, tblS2a$ntile)[c('Bacillariophyceae', 'Chlorophyceae','Trebouxiophyceae', 'Cyanophyceae', 'Dinophyceae'),] 
+  tblS2_out <- data.frame(valid_name =  names(dk_out.opt), optloc = dk_out.opt, freq = colSums(datcm_out), ntile = ntile(dk_out.opt, 3))
+  tblS2_out <- left_join(tblS2_out, select(bscl, valid_name, Kingdom, Class))
+  TableS2_out <- table(tblS2_out$Class, tblS2_out$ntile)[c('Bacillariophyceae', 'Chlorophyceae','Trebouxiophyceae', 'Cyanophyceae', 'Dinophyceae'),] 
   # diatoms and Chlorophyceae decrease, Cyanobacteria and Dinoflagellates increase
   
   # ntile boundaries
-  arrange(tblS2a, optloc) %>% group_by( ntile) %>% summarise(beg=first(optloc), end=last(optloc)) %>% data.frame()
+  arrange(tblS2_out, optloc) %>% group_by( ntile) %>% summarise(beg=first(optloc), end=last(optloc)) %>% data.frame()
   
-  tblS2b <- data.frame(valid_name =  names(dk1.opt), optloc = dk1.opt, freq = colSums(datcm1), ntile = ntile(dk1.opt, 3))
-  tblS2b <- left_join(tblS2b, select(bscl, valid_name, Kingdom, Class))
-  TableS2b <- table(tblS2b$Class, tblS2b$ntile)[c('Bacillariophyceae', 'Chlorophyceae','Trebouxiophyceae', 'Cyanophyceae', 'Dinophyceae'),]
+  tblS2_in <- data.frame(valid_name =  names(dk_in.opt), optloc = dk_in.opt, freq = colSums(datcm_in), ntile = ntile(dk_in.opt, 3))
+  tblS2_in <- left_join(tblS2_in, select(bscl, valid_name, Kingdom, Class))
+  TableS2_in <- table(tblS2_in$Class, tblS2_in$ntile)[c('Bacillariophyceae', 'Chlorophyceae','Trebouxiophyceae', 'Cyanophyceae', 'Dinophyceae'),]
   
   # ntile boundaries
-  arrange(tblS2b, optloc) %>% group_by( ntile) %>% summarise(beg=first(optloc), end=last(optloc)) %>% data.frame()
+  arrange(tblS2_in, optloc) %>% group_by( ntile) %>% summarise(beg=first(optloc), end=last(optloc)) %>% data.frame()
   
-  TableS2 <- cbind(TableS2a, TableS2b)
-  colnames(TableS2) <- paste(rep(c('Outer', 'Inner'), each = 3), colnames(t1))
+  TableS2 <- cbind(TableS2_out, TableS2_in)
+  colnames(TableS2) <- paste(rep(c('Outer', 'Inner'), each = 3), colnames(TableS2_out))
   
   stargazer(TableS2 , type = 'text', title = 'Table S2')
   
   
   # what about species?
-  tblS3a <- group_by(tblS2a, ntile, Class) %>% arrange(desc(freq), by_group = TRUE) %>%  summarise(Taxon = head(valid_name, 3), freq = head(freq, 3)) %>% filter(Class %in% c('Bacillariophyceae', 'Chlorophyceae','Trebouxiophyceae', 'Cyanophyceae', 'Dinophyceae')) %>% arrange(Class, ntile, desc(freq)) %>% data.frame()
+  tblS3_out <- group_by(tblS2_out, ntile, Class) %>% arrange(desc(freq), by_group = TRUE) %>%  summarise(Taxon = head(valid_name, 3), freq = head(freq, 3)) %>% filter(Class %in% c('Bacillariophyceae', 'Chlorophyceae','Trebouxiophyceae', 'Cyanophyceae', 'Dinophyceae')) %>% arrange(Class, ntile, desc(freq)) %>% data.frame()
   
-  tblS3b <- group_by(tblS2b, ntile, Class) %>% arrange(desc(freq), by_group = TRUE) %>%  summarise(Taxon = head(valid_name, 3), freq = head(freq, 3)) %>% filter(Class %in% c('Bacillariophyceae', 'Chlorophyceae','Trebouxiophyceae', 'Cyanophyceae', 'Dinophyceae')) %>% arrange(Class, ntile, desc(freq)) %>% data.frame()
+  tblS3_in <- group_by(tblS2_in, ntile, Class) %>% arrange(desc(freq), by_group = TRUE) %>%  summarise(Taxon = head(valid_name, 3), freq = head(freq, 3)) %>% filter(Class %in% c('Bacillariophyceae', 'Chlorophyceae','Trebouxiophyceae', 'Cyanophyceae', 'Dinophyceae')) %>% arrange(Class, ntile, desc(freq)) %>% data.frame()
   
-  TableS3 <- cbind(tblS3a, tblS3b[, 3:4])
+  TableS3 <- cbind(tblS3_out, tblS3_in[, 3:4])
   
   # most frequent taxa per Class and time period
   stargazer(as.matrix(TableS3) , type = 'text', title = 'Table S3')
@@ -711,11 +711,9 @@ if(T){ # species likelihood tables
 # to visualize the trends in beta diversity, we calculate mean dissimilarities per year, constraining the sample pairs to the same year, month (to avoid seasonal confounding effect), and station (to avoid spatial confounding effect)
 
 if(T){ # make df - the beta table
-  # sqrt transform the community raw community matrix
+  # sqrt transform the raw community matrix
   datcmsqrt <- sqrt(datcm[as.character(meta$sampleID), ])
-  
-  
-  
+
   if(T){# NB long calculation
     if(!file.exists('bin/HelSummerTrends_beta_decomposition.rda')){
       beta.decomposition <- adespatial::beta.div.comp(datcmsqrt, coef = "S", quant = T) # D%diff, Sørensen aka Bray
@@ -765,23 +763,11 @@ if(T){ # beta statistics
 ### Fig. 5 TRENDS IF BETA DIVERSITY ####
 
 if(T){ # saves Fig 5 beta diversity trends as HelSummerTrends_Figure5.pdf
-  F5A <- filter(betadf, mone == mons, stns == stne, stns %in% stni,  Dyear < 4) %>% group_by(years, Dyear) %>% dplyr::summarise(S = mean(S)) # 150 x 5
+  F5_in <- filter(betadf, mone == mons, stns == stne, stns %in% stni,  Dyear < 4) %>% group_by(years, Dyear) %>% dplyr::summarise(S = mean(S)) # 150 x 5
   # outer stations
-  F5B <- filter(betadf, mone == mons, stns == stne, stns %in% stno,  Dyear < 4) %>% group_by(years, Dyear) %>%  dplyr::summarise(S = mean(S)) # 206 x 5
+  F5_out <- filter(betadf, mone == mons, stns == stne, stns %in% stno,  Dyear < 4) %>% group_by(years, Dyear) %>%  dplyr::summarise(S = mean(S)) # 206 x 5
   
-  Fig5A <- ggplot(F5A, aes(years, S)) + # S1 is Sørensen aka Bray aka D%Diff, J1 is Jaccard aka Ružička 
-    geom_line(aes(size = factor(Dyear))) + 
-    geom_smooth(aes(linetype = factor(Dyear)), col = 1) +
-    scale_colour_manual(values = c("black", "black", "black", "black"),  guide = 'none') +
-    scale_size_manual(values = c(.75, 0.5,0.5,0.5), guide = 'none') + 
-    scale_x_continuous(breaks = seq(1970, 2020, by = 10), limits = c(1965, 2020)) + 
-    scale_linetype_manual(values = c(1, 5,2,3), name = 'Year distance', labels = c('same year','1 year apart', '2 years apart', '3 years apart')) + 
-    theme(legend.position = c(0.2, 0.88), legend.background = element_rect(fill = 0)) +
-    xlab('Years') + 
-    ylab('Bray-Curtis dissimilarity') +
-    theme(axis.title = element_text(size = 18), axis.text = element_text(size = 18), legend.text = element_text(size = 14), legend.title = element_text(size = 14), legend.key.width= unit(1.5, 'cm')) 
-  
-  Fig5B <- ggplot(F5B, aes(years, S)) + # S1 is Sørensen aka Bray aka D%Diff, J1 is Jaccard aka Ružička 
+  Fig5_out <- ggplot(F5_out, aes(years, S)) + # S1 is Sørensen aka Bray aka D%Diff, J1 is Jaccard aka Ružička 
     geom_line(aes(size = factor(Dyear))) + 
     geom_smooth(aes(linetype = factor(Dyear)), col = 1) +
     scale_colour_manual(values = c("black", "black", "black", "black"),  guide = 'none') +
@@ -791,9 +777,21 @@ if(T){ # saves Fig 5 beta diversity trends as HelSummerTrends_Figure5.pdf
     theme(legend.position = c(0.2, 0.12), legend.background = element_rect(fill = 0)) +
     xlab('Years') + 
     ylab('Bray-Curtis dissimilarity') +
+    theme(axis.title = element_text(size = 18), axis.text = element_text(size = 18), legend.text = element_text(size = 14), legend.title = element_text(size = 14), legend.key.width= unit(1.5, 'cm')) 
+  
+  Fig5_in <- ggplot(F5_in, aes(years, S)) + # S1 is Sørensen aka Bray aka D%Diff, J1 is Jaccard aka Ružička 
+    geom_line(aes(size = factor(Dyear))) + 
+    geom_smooth(aes(linetype = factor(Dyear)), col = 1) +
+    scale_colour_manual(values = c("black", "black", "black", "black"),  guide = 'none') +
+    scale_size_manual(values = c(.75, 0.5,0.5,0.5), guide = 'none') + 
+    scale_x_continuous(breaks = seq(1970, 2020, by = 10), limits = c(1965, 2020)) + 
+    scale_linetype_manual(values = c(1, 5,2,3), name = 'Year distance', labels = c('same year','1 year apart', '2 years apart', '3 years apart')) + 
+    theme(legend.position = c(0.2, 0.88), legend.background = element_rect(fill = 0)) +
+    xlab('Years') + 
+    ylab('Bray-Curtis dissimilarity') +
     theme(axis.title = element_text(size = 18), axis.text = element_text(size = 18),legend.text = element_text(size = 14), legend.title = element_text(size = 14), legend.key.width= unit(1.5, 'cm')) 
   
-  Figure5 <- plot_grid(Fig5B, Fig5A, labels = "AUTO", label_size = 24) # glue panels together
+  Figure5 <- plot_grid(Fig5_out, Fig5_in, labels = "AUTO", label_size = 24) # glue panels together
   cowplot::save_plot("./fig/HelSummerTrends_Figure5.pdf", Figure5, ncol = 2, base_height = 6, base_width = 6)
   # cowplot::save_plot("./fig/HelSummerTrends_Figure5.svg", Figure5, ncol = 2, base_height = 6, base_width = 6)
   
@@ -804,13 +802,13 @@ if(T){ # saves Fig 5 beta diversity trends as HelSummerTrends_Figure5.pdf
 
 if(T){ # saves Fig 6 beta diversity trends as HelSummerTrends_Figure6.pdf
   # inner stations
-  F6A <- filter(betadf, mone == mons, stns != stne, stns %in% stni,  Dyear < 1) %>% group_by(years, Dyear) %>% dplyr::summarise(S = mean(S)) # 254 x  5
+  F6_in <- filter(betadf, mone == mons, stns != stne, stns %in% stni,  Dyear < 1) %>% group_by(years, Dyear) %>% dplyr::summarise(S = mean(S)) # 254 x  5
   # outer stations
-  F6B <- filter(betadf, mone == mons, stns != stne, stns %in% stno,  Dyear < 1) %>% group_by(years, Dyear) %>% dplyr::summarise(S = mean(S))
+  F6_out <- filter(betadf, mone == mons, stns != stne, stns %in% stno,  Dyear < 1) %>% group_by(years, Dyear) %>% dplyr::summarise(S = mean(S))
 
-  F6A$pel <- 'Coastal'
-  F6B$pel <- 'Pelagic'
-  F6 <- rbind(F6A, F6B)
+  F6_in$pel <- 'Coastal'
+  F6_out$pel <- 'Pelagic'
+  F6 <- rbind(F6_out, F6_in)
   
   Figure6 <- ggplot(F6, aes(years, S,  linetype = pel)) + 
     geom_line() + 
@@ -832,11 +830,11 @@ if(T){ # saves Fig 7 beta diversity trends as HelSummerTrends_Figure7.pdf
   
   # month and station constrained beta decomposition with 0 and 3 year lag
   # inner stations
-  F7A <- filter(betadf, mone == mons, stns == stne, stns %in% stni, Dyear %in% c(0, 3)) %>% group_by(years, Dyear) %>% dplyr::summarise(Srich = mean(Srich)) 
+  F7_in <- filter(betadf, mone == mons, stns == stne, stns %in% stni, Dyear %in% c(0, 3)) %>% group_by(years, Dyear) %>% dplyr::summarise(Srich = mean(Srich)) 
   # outer stations
-  F7B <- filter(betadf, mone == mons, stns == stne, stns %in% stno, Dyear %in% c(0, 3)) %>% group_by(years, Dyear) %>% dplyr::summarise(Srich = mean(Srich))
+  F7_out <- filter(betadf, mone == mons, stns == stne, stns %in% stno, Dyear %in% c(0, 3)) %>% group_by(years, Dyear) %>% dplyr::summarise(Srich = mean(Srich))
   
-  Fig7A <- ggplot(F7A, aes(years, Srich, col = factor(Dyear))) +
+  Fig7_out <- ggplot(F7_out, aes(years, Srich, col = factor(Dyear))) +
     geom_line(aes(size = factor(Dyear))) + 
     geom_smooth(aes(linetype = factor(Dyear))) +
     scale_colour_manual(values = c("black", "black"), guide = 'none' ) +
@@ -848,7 +846,7 @@ if(T){ # saves Fig 7 beta diversity trends as HelSummerTrends_Figure7.pdf
     theme(legend.position = c(0.1, 0.2), legend.background = element_rect(fill = 0)) + 
     theme(legend.title=element_blank(), axis.title = element_text(size = 18), axis.text = element_text(size = 18))
   
-  Fig7B <- ggplot(F7B , aes(years, Srich, col = factor(Dyear))) +
+  Fig7_in <- ggplot(F7_in , aes(years, Srich, col = factor(Dyear))) +
     geom_line(aes(size = factor(Dyear))) + 
     geom_smooth(aes(linetype = factor(Dyear))) +
     scale_colour_manual(values = c("black", "black"),  guide = 'none') +
@@ -859,7 +857,7 @@ if(T){ # saves Fig 7 beta diversity trends as HelSummerTrends_Figure7.pdf
     ylab('Relativized abundance difference') +
     theme(legend.title=element_blank(), axis.title = element_text(size = 18), axis.text = element_text(size = 18))
   
-  F7 <- plot_grid(Fig7B, Fig7A, labels = "AUTO", label_size = 24) # glue panels together
+  F7 <- plot_grid(Fig7_out, Fig7_in, labels = "AUTO", label_size = 24) # glue panels together
   
   cowplot::save_plot("./fig/HelSummerTrends_Figure7.pdf", F7, ncol = 2, base_height = 6, base_width = 6)
   # cowplot::save_plot("./fig/HelSummerTrends_Figure7.svg", F7, ncol = 2, base_height = 6, base_width = 6)
@@ -874,32 +872,32 @@ if(T){ # saves Fig 9 beta diversity trends as HelSummerTrends_Figure9.pdf
   DisDec <- mutate(DisDec, S = 1-S) # distance to similarity
   
   # distance decay glm models and statistics
-  brayi.glm <- glm(S ~ Dobs, family = binomial(link = log), data = filter(DisDec, stne %in% stni))
-  brayo.glm <- glm(S ~ Dobs, family = binomial(link = log), data = filter(DisDec, stne %in% stno))
+  bray_in.glm <- glm(S ~ Dobs, family = binomial(link = log), data = filter(DisDec, stne %in% stni))
+  bray_out.glm <- glm(S ~ Dobs, family = binomial(link = log), data = filter(DisDec, stne %in% stno))
   
   # bray distance decay with geom_hex()
   # predict for plotting the model fit
   newd <- data.frame(Dobs = 0:52) # prediction years
-  newd$fito <- exp(predict(brayo.glm, newdata = newd))
-  newd$fiti <- exp(predict(brayi.glm, newdata = newd))
+  newd$fit_out <- exp(predict(bray_out.glm, newdata = newd))
+  newd$fit_in <- exp(predict(bray_in.glm, newdata = newd))
   
   # inner station halving distance
-   -log(2)/coef(brayi.glm)[2] # 11.3 y
+   -log(2)/coef(bray_in.glm)[2] # 11.3 y
   # outer station halving distance
-   -log(2)/coef(brayo.glm)[2] # 23.6 y
+   -log(2)/coef(bray_out.glm)[2] # 23.6 y
   # 
   # initial beta similarity inner bays
-  exp(coef(brayi.glm)[1]) # 0.46
+  exp(coef(bray_in.glm)[1]) # 0.46
   # initial beta similarity outer archipelago
-  exp(coef(brayo.glm)[1]) # 0.38
+  exp(coef(bray_out.glm)[1]) # 0.38
   
   # Figure 9
   #  outer station panel
-  F8B <- ggplot(data = filter(DisDec, stne %in% stno), aes(Dobs, y=S)) + 
+  F8_out <- ggplot(data = filter(DisDec, stne %in% stno), aes(Dobs, y=S)) + 
     geom_hex(bins = 30) + 
     scale_fill_gradientn(colours = colorRamps::matlab.like(50), name = 'Count') + 
-    geom_line(data = newd, aes(Dobs, fito), size = 1.3, col = 'black') +
-    geom_vline(xintercept = -log(2)/coef(brayo.glm)[2], size = 1, col = 'red') +
+    geom_line(data = newd, aes(Dobs, fit_out), size = 1.3, col = 'black') +
+    geom_vline(xintercept = -log(2)/coef(bray_out.glm)[2], size = 1, col = 'red') +
     theme(legend.position = c(0.85, 0.77), legend.background = element_rect(fill = 0)) +
     ylim(0, 1) + 
     xlab("Years") + 
@@ -907,18 +905,18 @@ if(T){ # saves Fig 9 beta diversity trends as HelSummerTrends_Figure9.pdf
     theme(axis.title = element_text(size = 18), axis.text = element_text(size = 18),legend.text = element_text(size = 14), legend.title = element_text(size = 14)) 
   
   #  inner station panel
-  F8A <- ggplot(data = filter(DisDec, stne %in% stni), aes(Dobs, y=S)) + 
+  F8_in <- ggplot(data = filter(DisDec, stne %in% stni), aes(Dobs, y=S)) + 
     geom_hex(bins = 30) + 
     scale_fill_gradientn(colours = colorRamps::matlab.like(50), name = 'Count') + 
-    geom_line(data = newd, aes(Dobs, fiti), size = 1.3, col = 'black') +
-    geom_vline(xintercept = -log(2)/coef(brayi.glm)[2], size = 1, col = 'red') +
+    geom_line(data = newd, aes(Dobs, fit_in), size = 1.3, col = 'black') +
+    geom_vline(xintercept = -log(2)/coef(bray_in.glm)[2], size = 1, col = 'red') +
     theme(legend.position = c(0.85, 0.77), legend.background = element_rect(fill = 0)) +
     ylim(0, 1) + 
     xlab("Years") + 
     ylab("Bray-Curtis similarity") +
     theme(axis.title = element_text(size = 18), axis.text = element_text(size = 18),legend.text = element_text(size = 14), legend.title = element_text(size = 14)) 
   
-  Fig8 <- plot_grid(F8B, F8A, labels = "AUTO", label_size = 24) # glue panels together
+  Fig8 <- plot_grid(F8_out, F8_in, labels = "AUTO", label_size = 24) # glue panels together
   
   cowplot::save_plot("./fig/HelSummerTrends_Figure8.pdf", Fig8, ncol = 2, base_height = 6, base_width = 6)
   # cowplot::save_plot("./fig/HelSummerTrends_Figure8.svg", Fig8, ncol = 2, base_height = 6, base_width = 6)
@@ -936,7 +934,7 @@ if(T){ # saves Fig S2 beta diversity trends as HelSummerTrends_FigureS2.pdf
   
   FigS2 <- gratia::draw(mod$gam)
   cowplot::save_plot("./fig/HelSummerTrends_FigureS2.pdf", FigS2, base_height = 3, base_width = 6)
-  #cowplot::save_plot("./fig/HelSummerTrends_FigureS2.svg", FigS2, base_height = 3, base_width = 6)
+  # cowplot::save_plot("./fig/HelSummerTrends_FigureS2.svg", FigS2, base_height = 3, base_width = 6)
   
 } # saves Fig S2 beta diversity trends as HelSummerTrends_FigureS2.pdf
 
@@ -1021,7 +1019,7 @@ if(T){ # mantel/adonis block for Table 1 and Fig S3
         }, mc.cores = detectCores())
       }
   
-      save(beta.decomposition, file = './bin/HelSummerTrends_mantel_adonis.rda')
+      save(MANTELl.lst, ADONIS.lst, file = './bin/HelSummerTrends_mantel_adonis.rda')
     } else {load(file = './bin/HelSummerTrends_mantel_adonis.rda')}
   } # NB long calculation
   
@@ -1037,13 +1035,13 @@ if(T){ # saves Fig S3 beta diversity trends as HelSummerTrends_FigureS3.pdf
   adonis.R2 <- lapply(ADONIS.lst, function(x){sapply(x, '[', 'R2') %>% sapply('[', 1) %>% unlist()})
   
   # ENVFIT panels
-  ef <- rbind(data.frame(value = c(envfitl.r[[1]][grep('RenyiD', names(envfitl.r[[1]]))],
-              envfitl.r[[1]][grep('DqzPD', names(envfitl.r[[1]]))]),
-              io = 'Outer Archipelago',
-              metric = factor(rep(c(1,2), each = length(q0)), ordered = TRUE, labels = c('Species diversity','Phylogenetic diversity'))),
-              data.frame(value = c(envfitl.r[[2]][grep('RenyiD', names(envfitl.r[[2]]))],
-              envfitl.r[[2]][grep('DqzPD', names(envfitl.r[[2]]))]),
+  ef <- rbind(data.frame(value = c(envfitl.r[['in']][grep('RenyiD', names(envfitl.r[[1]]))],
+              envfitl.r[['in']][grep('DqzPD', names(envfitl.r[['in']]))]),
               io = 'Inner Bays',
+              metric = factor(rep(c(1,2), each = length(q0)), ordered = TRUE, labels = c('Species diversity','Phylogenetic diversity'))),
+              data.frame(value = c(envfitl.r[['out']][grep('RenyiD', names(envfitl.r[[2]]))],
+              envfitl.r[['out']][grep('DqzPD', names(envfitl.r[[2]]))]),
+              io = 'Outer Archipelago',
               metric = factor(rep(c(1,2), each = length(q0)), ordered = TRUE, labels = c('Species diversity','Phylogenetic diversity'))))
   
   ef$q0 <- rep(q0, nrow(ef)/length(q0))
@@ -1125,7 +1123,7 @@ if(T){ # Table 1
   
   # combine the results forom the three different methods (envfit, mantel, adonis) into one final table, add row and column names   
   T1 <- cbind(T1e, T1m, T1a) 
-  dimnames(T1) <- list(c('Year', 'Season', 'Ptot', 'Ntot','Chl a', 'PO4', 'NO3', 'NH4', 'pH', 'Salinity', 'Temperature', 'Species richness','Species evenness','Phylogenetic diversity'), c('Envfit outer','Envfit inner', 'Mantel outer','Mantel inner' ,'Adonis outer','Adonis inner'))
+  dimnames(T1) <- list(c('Year', 'Season', 'Ptot', 'Ntot','Chl a', 'PO4', 'NO3', 'NH4', 'pH', 'Salinity', 'Temperature', 'Species richness','Species evenness','Phylogenetic diversity'), c('Envfit inner','Envfit outer', 'Mantel inner','Mantel outer' ,'Adonis inner','Adonis outer'))
   
   # The final Table 1
   stargazer(T1, type = 'text', title = 'Table 1')
@@ -1170,7 +1168,7 @@ hgam_E10 <- XXgamm('E10')
     R2 = sapply(x, '[', 2) %>% lapply(summary) %>% sapply('[', 'r.sq') %>% unlist() %>% signif(3)
   )}
 
-  tableS1 <- rbind(cbind(hgmf(hgam_NMDS[[1]]), hgmf(hgam_NMDS[[2]])), cbind(hgmf(hgam_N0[[1]]), hgmf(hgam_N0[[2]])), cbind(hgmf(hgam_E10[[1]]), hgmf(hgam_E10[[2]])))
+  tableS1 <- rbind(cbind(hgmf(hgam_NMDS[[2]]), hgmf(hgam_NMDS[[1]])), cbind(hgmf(hgam_N0[[2]]), hgmf(hgam_N0[[1]])), cbind(hgmf(hgam_E10[[2]]), hgmf(hgam_E10[[1]])))
   
   # format column and row names
   colnames(tableS1) <- paste(rep(c('Outer', 'Inner'), each = 3), colnames(tableS1))
@@ -1180,7 +1178,7 @@ hgam_E10 <- XXgamm('E10')
   stargazer(as.matrix(tableS1) , type = 'text', title = 'Table S1')
   
   # hypothesis testing - compare the hierarchical GAM models with anova
-  i <- 1 # inner bays; chagne i <- 2 for outer archipelago 
+  i <- 1 # inner bays; change i <- 2 for outer archipelago 
   anova(hgam_NMDS[[i]][['0']]$lme, hgam_NMDS[[i]][['C']]$lme, hgam_NMDS[[i]][['G']]$lme,hgam_NMDS[[i]][['GS']]$lme, hgam_NMDS[[i]][['GI']]$lme)
   anova(hgam_N0[[i]][['0']]$lme, hgam_N0[[i]][['C']]$lme, hgam_N0[[i]][['G']]$lme,hgam_N0[[i]][['GS']]$lme, hgam_N0[[i]][['GI']]$lme)
   anova(hgam_E10[[i]][['0']]$lme, hgam_E10[[i]][['C']]$lme, hgam_E10[[i]][['G']]$lme,hgam_E10[[i]][['GS']]$lme, hgam_E10[[i]][['GI']]$lme)
@@ -1226,7 +1224,7 @@ hgam_E10 <- XXgamm('E10')
 
 #### Fig S7  NUTRIENT BLOCK ####
 
-if(T){ # saves nutreint concentration figure figure HelSummerTrends_FigureS7.pdf 
+if(T){ # saves nutrient concentration figure figure HelSummerTrends_FigureS7.pdf 
   nuts <- read.table(file = './dat/HelSummerTrends_Nutreints.txt', head = TRUE, sep = '\t')
 
   # actual plots
